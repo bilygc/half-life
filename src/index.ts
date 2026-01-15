@@ -126,7 +126,9 @@ server.get<{ Reply: HLNews }>('/news', async (request, reply) => {
 
 })
 
-server.listen({ port: 8080 }, (err, address) => {
+const port = Number(process.env.PORT) || 8080;
+
+server.listen({ port, host: '0.0.0.0' }, (err, address) => {
   if (err) {
     console.error(err)
     process.exit(1)
