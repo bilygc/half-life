@@ -102,7 +102,7 @@ server.get<{ Reply: HLNews }>('/news', async (request, reply) => {
       throw new Error('NEWS_API_KEY is not defined');
     }
 
-    const url = `https://newsapi.org/v2/everything?excludeDomains=Doeshalflife3cameout.fun&q="half-life 3"&from=2025-12-20&searchIn=title&sortBy=publishedAt&language=en&apiKey=${apiKey}`;
+    const url = `https://newsapi.org/v2/everything?q=half-life 3&searchIn=title&sortBy=publishedAt&language=en&apiKey=${apiKey}`;
 
     try {
       const response = await fetch(url);
