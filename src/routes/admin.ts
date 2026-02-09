@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { createClient } from "@supabase/supabase-js";
+import { sendAnnouncementToSubscribers } from "../lib/sendAnnouncementToSubscribers.js";
 
 export async function adminRoutes(app: FastifyInstance) {
   const supabase = createClient(

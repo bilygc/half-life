@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { HLNews } from "../types.js";
 import { sendEmail } from "../lib/sendEmail.js";
 import crypto from "crypto";
+import { createEmailTemplate } from "../lib/createEmailTemplate.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -72,21 +73,19 @@ async function main() {
       .select()
       .single();
 
-    if (insertError ) {
+    if (insertError) {
       console.error("[CRON] Failed inserting announcement", insertError);
       continue;
     }
 
     if (!announcement || announcement.approved) continue;
 
-    await sendEmail(ADMIN_EMAIL, {
-      title: article.title,
-      url: article.url,
-      publishedAt: article.publishedAt.toISOString(),
-    });
+    const subject = "🚨 Half-Life 3 has been announced!"
+
+    await sendEmail(ADMIN_EMAIL, subject, createEmailTemplate(announcement, "admin"));
 
     console.log("[CRON] Admin notified of new announcement");
-    
+
   }
 
   process.exit(0);

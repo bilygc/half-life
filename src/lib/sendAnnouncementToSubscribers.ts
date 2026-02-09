@@ -1,7 +1,9 @@
 import { sendEmail } from "./sendEmail.js";
+import type { Announcement } from "./types.js";
+import { createEmailTemplate } from "./createEmailTemplate.js";
 
 export async function sendAnnouncementToSubscribers(
-  announcement: any,
+  announcement: Announcement,
   supabase: any
 ) {
   const { data: subscribers } = await supabase
@@ -22,11 +24,10 @@ export async function sendAnnouncementToSubscribers(
 
     if (sent) continue;
 
+    const subject = "🚨 Half-Life 3 has been announced!"
+
     try {
-      await sendEmail(user.email, {
-        title: announcement.title,
-        url: announcement.url
-      });
+      await sendEmail(user.email, subject, createEmailTemplate(announcement, "subscriber"));
 
       await supabase.from("notification_logs").insert({
         announcement_id: announcement.id,
