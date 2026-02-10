@@ -67,7 +67,7 @@ export const createEmailTemplate = (announcement: Announcement, type: EmailType)
                             <tr>
                                 <td align="center">
                                 <a
-                                    href="${approval_url}}"
+                                    href="${approval_url}"
                                     style="
                                     display:inline-block;
                                     padding:14px 22px;
@@ -107,34 +107,96 @@ export const createEmailTemplate = (announcement: Announcement, type: EmailType)
                 </html>
 `;
         case "subscriber":
-            return `
-            <div style="font-family: Arial, sans-serif; line-height:1.6">
-                <h2>🚨 Half-Life 3 Announcement</h2>
+            return `<!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8" />
+                    <title>Half-Life 3 Announcement</title>
+                </head>
+                <body style="margin:0;padding:0;background-color:#0f172a;font-family:Arial,Helvetica,sans-serif;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td align="center" style="padding:40px 16px;">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#020617;border-radius:12px;overflow:hidden;box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);">
+                        <!-- Header -->
+                        <tr>
+                        <td style="padding:32px 24px;background:linear-gradient(135deg,#f97316,#ea580c);color:#ffffff;">
+                            <h1 style="margin:0;font-size:24px;letter-spacing:-0.025em;">
+                            🚨 Half-Life 3 Alert
+                            </h1>
+                            <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">
+                            New announcement detected
+                            </p>
+                        </td>
+                        </tr>
 
-                <p>
-                A new announcement related to <strong>Half-Life 3</strong> has just been published:
-                </p>
+                        <!-- Body -->
+                        <tr>
+                        <td style="padding:32px 24px;color:#e5e7eb;">
+                            <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">
+                            A new announcement related to <strong>Half-Life 3</strong> has just been published:
+                            </p>
 
-                <p>
-                <strong>${announcement.title}</strong>
-                </p>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;background-color:#0f172a;border:1px solid #1e293b;border-radius:8px;">
+                            <tr>
+                                <td style="padding:20px;">
+                                <p style="margin:0 0 12px;font-size:20px;font-weight:bold;color:#f8fafc;line-height:1.4;">
+                                    ${announcement.title}
+                                </p>
+                                </td>
+                            </tr>
+                            </table>
 
-                <p>
-                <a href="${announcement.url}" target="_blank">
-                    👉 Read the full announcement
-                </a>
-                </p>
+                            <!-- CTA -->
+                            <table cellpadding="0" cellspacing="0" style="margin:32px 0;">
+                            <tr>
+                                <td align="center">
+                                <a
+                                    href="${announcement.url}"
+                                    target="_blank"
+                                    style="
+                                    display:inline-block;
+                                    padding:16px 28px;
+                                    background-color:#f97316;
+                                    color:#ffffff;
+                                    font-weight:bold;
+                                    font-size:16px;
+                                    text-decoration:none;
+                                    border-radius:8px;
+                                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                                    "
+                                >
+                                    Read Full Announcement →
+                                </a>
+                                </td>
+                            </tr>
+                            </table>
 
-                <hr />
+                            <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.5;">
+                            Stay tuned for more updates. We're monitoring around the clock.
+                            </p>
+                        </td>
+                        </tr>
 
-                <p style="font-size:12px;color:#666">
-                You are receiving this email because you subscribed to Half-Life 3 alerts.
-                <br />
-                <a href="${unsubscribeUrl}">
-                    Unsubscribe
-                </a>
-                </p>
-            </div>
-            `
+                        <!-- Footer -->
+                        <tr>
+                        <td style="padding:24px;background-color:#020617;color:#64748b;font-size:12px;text-align:center;border-top:1px solid #1e293b;">
+                            <p style="margin:0 0 12px;">
+                            You are receiving this email because you subscribed to Half-Life 3 alerts.
+                            </p>
+                            <p style="margin:0;">
+                            <a href="${unsubscribeUrl}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a> · 
+                            <a href="${BASE_URL}" style="color:#94a3b8;text-decoration:none;">HL3 Tracker</a>
+                            </p>
+                        </td>
+                        </tr>
+
+                        </table>
+                        </td>
+                    </tr>
+                    </table>
+                </body>
+                </html>
+`;
     }
 }
