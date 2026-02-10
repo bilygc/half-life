@@ -3,6 +3,7 @@ import 'dotenv/config'
 import sql from './db.js'
 import { createClient } from '@supabase/supabase-js';
 import type { HLNews } from './types.js';
+import { adminRoutes } from './routes/admin.js';
 
 console.log(">>> Backend starting up...");
 // Use environment variables; never commit service role key.
@@ -43,6 +44,8 @@ const server = fastify()
 await server.register(import('@fastify/cors'), {
   origin: '*'
 })
+
+await server.register(adminRoutes);
 
 server.get('/ping', async (request, reply) => {
   return 'pong\n'
