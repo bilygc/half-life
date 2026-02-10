@@ -11,7 +11,7 @@ export async function sendEmail(
     throw new Error("Missing RESEND_API_KEY");
   }
 
-  const from = process.env.FROM_EMAIL || "alerts@example.com";
+  const from = process.env.FROM_EMAIL || "alerts@alerts.time-life3.com";
   const baseUrl = process.env.BASE_URL || "";
 
   const unsubscribeUrl = `${baseUrl}/unsubscribe?email=${encodeURIComponent(
