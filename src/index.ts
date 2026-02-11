@@ -1,9 +1,9 @@
-import fastify from 'fastify'
-import 'dotenv/config'
-import sql from './db.js'
-import { createClient } from '@supabase/supabase-js';
-import type { HLNews } from './types.js';
-import { adminRoutes } from './routes/admin.js';
+import fastify from "fastify";
+import "dotenv/config";
+import sql from "./db.js";
+import { createClient } from "@supabase/supabase-js";
+import type { HLNews } from "./types.js";
+import { adminRoutes } from "./routes/admin.js";
 
 console.log(">>> Backend starting up...");
 // Use environment variables; never commit service role key.
@@ -11,7 +11,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in env');
+  throw new Error("Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in env");
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -20,41 +20,40 @@ let isTimeToFetchNews = false;
 let cachedDbNews: HLNews = {
   status: "",
   totalResults: 0,
-  articles: []
-}
+  articles: [],
+};
 
 const insertNewsApiRow = async () => {
   // Build payload — only include provided fields
   const payload = {
-    last_fetched: new Date().toISOString()
+    last_fetched: new Date().toISOString(),
   };
 
   const { data, error } = await supabase
-    .from('news_api')
+    .from("news_api")
     .insert(payload)
     .select(); // return the inserted row(s)
 
   if (error) throw error;
   return data;
-}
+};
 
+const server = fastify();
 
-const server = fastify()
-
-await server.register(import('@fastify/cors'), {
-  origin: '*'
-})
+await server.register(import("@fastify/cors"), {
+  origin: "*",
+});
 
 await server.register(adminRoutes);
 
-server.get('/ping', async (request, reply) => {
-  return 'pong\n'
-})
+server.get("/ping", async (request, reply) => {
+  return "pong\n";
+});
 
 // Authorization Middleware
-server.addHook('onRequest', async (request, reply) => {
-  if (request.routeOptions.url === '/news') {
-    const authHeader = request.headers['authorization'];
+server.addHook("onRequest", async (request, reply) => {
+  if (request.routeOptions.url === "/news") {
+    const authHeader = request.headers["authorization"];
     const validToken = process.env.AUTH_TOKEN;
 
     if (!validToken) {
@@ -63,46 +62,44 @@ server.addHook('onRequest', async (request, reply) => {
 
     // Check for Bearer token format
     let token = authHeader;
-    if (authHeader?.startsWith('Bearer ')) {
+    if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.substring(7);
     }
 
     if (!token || token !== validToken) {
-      reply.code(401).send({ error: 'Unauthorized' });
+      reply.code(401).send({ error: "Unauthorized" });
     }
   }
 });
 
-
-
-server.get<{ Reply: HLNews }>('/news', async (request, reply) => {
+server.get<{ Reply: HLNews }>("/news", async (request, reply) => {
   console.log(">>> /news endpoint requested");
 
   const apiKey = process.env.NEWS_API_KEY;
 
   try {
-    const dbNews = await sql`SELECT last_fetched FROM news_api ORDER BY last_fetched DESC NULLS LAST LIMIT 1`;
-    
-      const lastFetched = new Date(dbNews[0]?.last_fetched);
-      const now = new Date();
-      const diffMs = now.getTime() - lastFetched.getTime();
-      const diffMins = diffMs / (1000 * 60);
-      
-      console.log(`>>> Last fetched: (${diffMins.toFixed(2)} minutes ago)`);
-      
-      if (diffMins > 30 || cachedDbNews.totalResults === 0) {
-        isTimeToFetchNews = true;
-      }
+    const dbNews =
+      await sql`SELECT last_fetched FROM news_api ORDER BY last_fetched DESC NULLS LAST LIMIT 1`;
+
+    const lastFetched = new Date(dbNews[0]?.last_fetched);
+    const now = new Date();
+    const diffMs = now.getTime() - lastFetched.getTime();
+    const diffMins = diffMs / (1000 * 60);
+
+    console.log(`>>> Last fetched: (${diffMins.toFixed(2)} minutes ago)`);
+
+    if (diffMins > 30 || cachedDbNews.totalResults === 0) {
+      isTimeToFetchNews = true;
+    }
   } catch (err) {
     console.error(">>> Database query failed:", err);
   }
-
 
   if (isTimeToFetchNews) {
     console.log(">>> Fetching news from NewsAPI...");
 
     if (!apiKey) {
-      throw new Error('NEWS_API_KEY is not defined');
+      throw new Error("NEWS_API_KEY is not defined");
     }
 
     const url = `https://newsapi.org/v2/everything?q=half-life 3&searchIn=title&sortBy=publishedAt&language=en&apiKey=${apiKey}`;
@@ -114,7 +111,7 @@ server.get<{ Reply: HLNews }>('/news', async (request, reply) => {
       }
       const data = (await response.json()) as HLNews;
       cachedDbNews = data;
-      
+
       const row = await insertNewsApiRow();
       isTimeToFetchNews = false;
 
@@ -122,19 +119,47 @@ server.get<{ Reply: HLNews }>('/news', async (request, reply) => {
     } catch (err) {
       console.error(">>> NewsAPI request failed:", err);
     }
-
   } else {
     return cachedDbNews;
   }
+});
 
-})
+server.post<{ Body: { email: string; preference: "all" | "official_only" } }>(
+  "/subscribe",
+  async (request, reply) => {
+    const { email, preference } = request.body;
+
+    if (!email || !preference) {
+      return reply
+        .code(400)
+        .send({ error: "Email and preference are required" });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("subscribers")
+        .upsert(
+          { email, preference, is_active: true, confirmed: true },
+          { onConflict: "email" },
+        )
+        .select();
+
+      if (error) throw error;
+
+      return { success: true, data };
+    } catch (err) {
+      console.error(">>> Subscription failed:", err);
+      return reply.code(500).send({ error: "Internal Server Error" });
+    }
+  },
+);
 
 const port = Number(process.env.PORT) || 8080;
 
-server.listen({ port, host: '0.0.0.0' }, (err, address) => {
+server.listen({ port, host: "0.0.0.0" }, (err, address) => {
   if (err) {
-    console.error(err)
-    process.exit(1)
+    console.error(err);
+    process.exit(1);
   }
-  console.log(`Server listening at ${address}`)
-})
+  console.log(`Server listening at ${address}`);
+});
