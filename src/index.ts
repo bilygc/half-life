@@ -4,6 +4,9 @@ import sql from "./db.js";
 import { createClient } from "@supabase/supabase-js";
 import type { HLNews } from "./types.js";
 import { adminRoutes } from "./routes/admin.js";
+import crypto from "crypto";
+import { sendEmail } from "./lib/sendEmail.js";
+import { createEmailTemplate } from "./lib/createEmailTemplate.js";
 
 console.log(">>> Backend starting up...");
 // Use environment variables; never commit service role key.
@@ -124,35 +127,97 @@ server.get<{ Reply: HLNews }>("/news", async (request, reply) => {
   }
 });
 
-server.post<{ Body: { email: string; preference: "all" | "official_only" } }>(
-  "/subscribe",
-  async (request, reply) => {
-    const { email, preference } = request.body;
+server.post<{
+  Body: { email: string; subscription_preference: "all" | "official_only" };
+}>("/subscribe", async (request, reply) => {
+  const { email, subscription_preference } = request.body;
 
-    if (!email || !preference) {
-      return reply
-        .code(400)
-        .send({ error: "Email and preference are required" });
+  if (!email || !subscription_preference) {
+    return reply.code(400).send({ error: "Email and preference are required" });
+  }
+
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+  const baseUrl = process.env.BASE_URL || "http://localhost:8080";
+
+  try {
+    const { data, error } = await supabase
+      .from("subscribers")
+      .upsert(
+        {
+          email,
+          subscription_preference,
+          is_active: true,
+          confirmed: false,
+          verification_token: verificationToken,
+        },
+        { onConflict: "email" },
+      )
+      .select();
+
+    if (error) throw error;
+
+    // Send verification email
+    const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
+    const subject = "λ Confirm your Half-Life 3 Alert Subscription";
+
+    // Re-using createEmailTemplate by passing a mock announcement object with the URL
+    await sendEmail(
+      email,
+      subject,
+      createEmailTemplate(
+        { url: verificationUrl } as any,
+        "verification" as any,
+      ),
+    );
+
+    return {
+      success: true,
+      message: "Verification email sent. Please check your inbox.",
+    };
+  } catch (err) {
+    console.error(">>> Subscription failed:", err);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  }
+});
+
+server.get<{
+  Querystring: { token: string };
+}>("/verify-email", async (request, reply) => {
+  const { token } = request.query;
+
+  if (!token) {
+    return reply.code(400).send({ error: "Verification token is required" });
+  }
+
+  try {
+    const { data: subscriber, error: fetchError } = await supabase
+      .from("subscribers")
+      .select("*")
+      .eq("verification_token", token)
+      .single();
+
+    if (fetchError || !subscriber) {
+      return reply.code(404).send({ error: "Invalid or expired token" });
     }
 
-    try {
-      const { data, error } = await supabase
-        .from("subscribers")
-        .upsert(
-          { email, preference, is_active: true, confirmed: true },
-          { onConflict: "email" },
-        )
-        .select();
+    const { error: updateError } = await supabase
+      .from("subscribers")
+      .update({
+        confirmed: true,
+        confirmed_at: new Date().toISOString(),
+        verification_token: null,
+      })
+      .eq("id", subscriber.id);
 
-      if (error) throw error;
+    if (updateError) throw updateError;
 
-      return { success: true, data };
-    } catch (err) {
-      console.error(">>> Subscription failed:", err);
-      return reply.code(500).send({ error: "Internal Server Error" });
-    }
-  },
-);
+    const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:4321";
+    return reply.redirect(`${frontendBaseUrl}/confirmation-success`);
+  } catch (err) {
+    console.error(">>> Email verification failed:", err);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  }
+});
 
 const port = Number(process.env.PORT) || 8080;
 

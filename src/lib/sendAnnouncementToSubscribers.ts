@@ -15,12 +15,7 @@ export async function sendAnnouncementToSubscribers(
   if (!subscribers?.length) return;
 
   for (const user of subscribers) {
-    // If user prefers official only, and this is NOT official, skip.
-    // For now, I'll check if the title contains "Official" or something similar if I don't have a type.
-    // Better: Allow the admin to decide or just send regardless if it's official.
-    // According to requirements: "news, leak or rumour" vs "official announcement".
-
-    const isOfficial = announcement.title.toLowerCase().includes("official");
+    const isOfficial = announcement.is_official;
     if (user.preference === "official_only" && !isOfficial) {
       continue;
     }
@@ -34,7 +29,9 @@ export async function sendAnnouncementToSubscribers(
 
     if (sent) continue;
 
-    const subject = "🚨 Half-Life 3 has been announced!";
+    const subject = isOfficial
+      ? "🚨 OFFICIAL: Half-Life 3 has been announced!"
+      : "👀 HL3 Intel: New Half-Life 3 update detected";
 
     try {
       await sendEmail(

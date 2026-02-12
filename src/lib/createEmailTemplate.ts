@@ -8,9 +8,9 @@ export const createEmailTemplate = (
 ) => {
   switch (type) {
     case "admin":
-      const approval_url =
+      const flag_url =
         BASE_URL +
-        "/admin/approve-announcement?token=" +
+        "/admin/flag-announcement?token=" +
         announcement.approval_token;
       return `<!DOCTYPE html>
                 <html lang="en">
@@ -64,32 +64,53 @@ export const createEmailTemplate = (
                             </tr>
                             </table>
 
-                            <p style="margin:16px 0;font-size:14px;color:#cbd5f5;">
-                            If this announcement is legitimate, approve it to notify all subscribed users.
+                             <p style="margin:16px 0;font-size:14px;color:#cbd5f5;">
+                             Decide how to flag this announcement to notify users:
                             </p>
+                            <ul style="margin:0 0 16px;padding:0 0 0 20px;font-size:13px;color:#94a3b8;">
+                                <li><strong>Flag as Official:</strong> Only notifies subscribers who want official news.</li>
+                                <li><strong>Flag as All:</strong> Notifies everyone (Full News, Leaks & Rumors).</li>
+                            </ul>
 
-                            <!-- CTA -->
-                            <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
-                            <tr>
-                                <td align="center">
-                                <a
-                                    href="${approval_url}"
-                                    style="
-                                    display:inline-block;
-                                    padding:14px 22px;
-                                    background-color:#22c55e;
-                                    color:#022c22;
-                                    font-weight:bold;
-                                    font-size:15px;
-                                    text-decoration:none;
-                                    border-radius:6px;
-                                    "
-                                >
-                                    ✅ Approve & Send Emails
-                                </a>
-                                </td>
-                            </tr>
-                            </table>
+                             <!-- CTA -->
+                             <table cellpadding="0" cellspacing="0" style="margin:24px 0; width: 100%;">
+                             <tr>
+                                 <td align="center" style="padding: 10px;">
+                                 <a
+                                     href="${flag_url}&is_official=true"
+                                     style="
+                                     display:block;
+                                     padding:14px 22px;
+                                     background-color:#22c55e;
+                                     color:#022c22;
+                                     font-weight:bold;
+                                     font-size:15px;
+                                     text-decoration:none;
+                                     border-radius:6px;
+                                     "
+                                 >
+                                     ✅ Flag as Official
+                                 </a>
+                                 </td>
+                                 <td align="center" style="padding: 10px;">
+                                 <a
+                                     href="${flag_url}&is_official=false"
+                                     style="
+                                     display:block;
+                                     padding:14px 22px;
+                                     background-color:#3b82f6;
+                                     color:#eff6ff;
+                                     font-weight:bold;
+                                     font-size:15px;
+                                     text-decoration:none;
+                                     border-radius:6px;
+                                     "
+                                 >
+                                     📢 Flag as All
+                                 </a>
+                                 </td>
+                             </tr>
+                             </table>
 
                             <p style="margin:0;font-size:12px;color:#94a3b8;">
                             ⚠️ This link can only be used once.  
@@ -139,11 +160,11 @@ export const createEmailTemplate = (
                 </td>
             </tr>
 
-            <!-- Breaking News Badge -->
+            <!-- News Badge -->
             <tr>
                 <td style="padding: 30px 40px 0 40px;">
-                <span style="display: inline-block; background-color: transparent; color: #ff8c00; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 0;">
-                    BREAKING NEWS
+                <span style="display: inline-block; background-color: transparent; color: ${announcement.is_official ? "#ff8c00" : "#60a5fa"}; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 0;">
+                    ${announcement.is_official ? "OFFICIAL ANNOUNCEMENT" : "COMMUNITY INTEL / RUMOR"}
                 </span>
                 </td>
             </tr>
@@ -151,17 +172,21 @@ export const createEmailTemplate = (
             <!-- Main Content -->
             <tr>
                 <td style="padding: 15px 40px 30px 40px;">
-                <h1 style="margin: 0 0 20px 0; font-size: 36px; font-weight: 700; color: #ff8c00; line-height: 1.2;">
+                <h1 style="margin: 0 0 20px 0; font-size: 36px; font-weight: 700; color: ${announcement.is_official ? "#ff8c00" : "#60a5fa"}; line-height: 1.2;">
                     ${announcement.title}
                 </h1>
                 <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.6; color: #b8b8b8;">
-                    The moment you've been waiting for has arrived. A new Half-Life 3 update has just been reported, and we wanted you to be among the first to know.
+                    ${
+                      announcement.is_official
+                        ? "The moment you've been waiting for has arrived. A new official Half-Life 3 update has just been reported."
+                        : "New intel regarding Half-Life 3 has surfaced. While not officially confirmed, this update is making waves in the community."
+                    }
                 </p>
                 
                 <!-- CTA Button -->
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                     <tr>
-                    <td style="border-radius: 4px; background-color: #ff8c00;">
+                    <td style="border-radius: 4px; background-color: ${announcement.is_official ? "#ff8c00" : "#60a5fa"};">
                         <a href="${announcement.url}" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #000000; text-decoration: none; text-transform: uppercase; letter-spacing: 1px;">
                         Read Full Story ⮕
                         </a>
@@ -186,6 +211,76 @@ export const createEmailTemplate = (
                 </p>
                 <p style="margin: 0; font-size: 12px; color: #555555;">
                     <a href="${unsubscribeUrl}" style="color: #ff8c00; text-decoration: underline;">Unsubscribe from alerts</a>
+                </p>
+                </td>
+            </tr>
+
+            </table>
+        </td>
+        </tr>
+    </table>
+    </body>
+    </html>`;
+    case "verification":
+      const verificationUrl = announcement.url; // We'll pass the verification URL in the 'url' field of the announcement object for simplicity in this template function
+      return `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your Subscription</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #000000;">
+        <tr>
+        <td style="padding: 20px 0;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #0a0a0a; border: 1px solid #1a1a1a;">
+            
+            <!-- Header -->
+            <tr>
+                <td style="padding: 30px 40px; border-bottom: 1px solid #1a1a1a;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                    <td>
+                        <span style="font-size: 24px; font-weight: 700; color: #ff8c00; letter-spacing: 2px;">λ TIME-LIFE 3</span>
+                    </td>
+                    </tr>
+                </table>
+                </td>
+            </tr>
+
+            <!-- Main Content -->
+            <tr>
+                <td style="padding: 40px 40px 30px 40px;">
+                <h1 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #ff8c00; line-height: 1.2;">
+                    VERIFY YOUR TRANSMISSION
+                </h1>
+                <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.6; color: #b8b8b8;">
+                    You're one step away from joining the resistance. Please confirm your email address to start receiving Half-Life 3 alerts.
+                </p>
+                
+                <!-- CTA Button -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                    <tr>
+                    <td style="border-radius: 4px; background-color: #ff8c00;">
+                        <a href="${verificationUrl}" style="display: inline-block; padding: 14px 32px; font-size: 14px; font-weight: 700; color: #000000; text-decoration: none; text-transform: uppercase; letter-spacing: 1px;">
+                        Confirm Email Address ⮕
+                        </a>
+                    </td>
+                    </tr>
+                </table>
+
+                <p style="margin: 25px 0 0 0; font-size: 13px; line-height: 1.5; color: #666666;">
+                    If you didn't request this, you can safely ignore this email.
+                </p>
+                </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+                <td style="padding: 30px 40px; border-top: 1px solid #1a1a1a;">
+                <p style="margin: 0; font-size: 12px; color: #555555; text-align: center;">
+                    TIME-LIFE 3 · Automated Alert System
                 </p>
                 </td>
             </tr>

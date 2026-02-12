@@ -8,7 +8,7 @@ import { createEmailTemplate } from "../lib/createEmailTemplate.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const NEWS_SOURCE = "newsapi";
@@ -17,7 +17,7 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 
 const generateApprovalToken = () => {
   return crypto.randomBytes(32).toString("hex");
-}
+};
 
 async function main() {
   console.log("[CRON] Checking HL3 news...");
@@ -33,7 +33,7 @@ async function main() {
     "&language=en";
 
   const res = await fetch(url, {
-    headers: { "X-Api-Key": apiKey }
+    headers: { "X-Api-Key": apiKey },
   });
 
   if (!res.ok) {
@@ -67,8 +67,9 @@ async function main() {
           published_at: article.publishedAt,
           processed: true,
           approval_token: generateApprovalToken(),
+          is_official: false,
         },
-        { onConflict: "source,source_id" }
+        { onConflict: "source,source_id" },
       )
       .select()
       .single();
@@ -80,18 +81,21 @@ async function main() {
 
     if (!announcement || announcement.approved) continue;
 
-    const subject = "🚨 Half-Life 3 has been announced!"
+    const subject = "🚨 Half-Life 3 has been announced!";
 
-    await sendEmail(ADMIN_EMAIL, subject, createEmailTemplate(announcement, "admin"));
+    await sendEmail(
+      ADMIN_EMAIL,
+      subject,
+      createEmailTemplate(announcement, "admin"),
+    );
 
     console.log("[CRON] Admin notified of new announcement");
-
   }
 
   process.exit(0);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("[CRON] Fatal error:", err);
   process.exit(1);
 });

@@ -15,7 +15,8 @@ export type Announcement = {
   created_at: string;
   approved: boolean;
   approval_token: string;
+  is_official: boolean;
 };
-export type EmailType = "admin" | "subscriber";
+export type EmailType = "admin" | "subscriber" | "verification";
 
 export type SubscriptionPreference = "all" | "official_only";
