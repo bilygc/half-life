@@ -5,15 +5,20 @@ import { sendAnnouncementToSubscribers } from "../lib/sendAnnouncementToSubscrib
 export async function adminRoutes(app: FastifyInstance) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  app.get("/admin/approve-announcement", async (req, reply) => {
-    const { token } = req.query as { token?: string };
+  app.get("/admin/flag-announcement", async (req, reply) => {
+    const { token, is_official } = req.query as {
+      token?: string;
+      is_official?: string;
+    };
 
     if (!token) {
       return reply.code(400).send("Missing token");
     }
+
+    const isOfficial = is_official === "true";
 
     const { data: announcement } = await supabase
       .from("announcements")
@@ -26,19 +31,28 @@ export async function adminRoutes(app: FastifyInstance) {
       return reply.code(404).send("Invalid or expired token");
     }
 
-    // 1️⃣ Aprobar anuncio
-    await supabase
+    // 1️⃣ Marcar como aprobado y establecer oficialidad
+    const { data: updatedAnnouncement, error } = await supabase
       .from("announcements")
       .update({
         approved: true,
+        is_official: isOfficial,
         approved_at: new Date().toISOString(),
-        approval_token: null
+        approval_token: null,
       })
-      .eq("id", announcement.id);
+      .eq("id", announcement.id)
+      .select()
+      .single();
+
+    if (error || !updatedAnnouncement) {
+      return reply.code(500).send("Failed to update announcement");
+    }
 
     // 2️⃣ Enviar correos masivos
-    await sendAnnouncementToSubscribers(announcement, supabase);
+    await sendAnnouncementToSubscribers(updatedAnnouncement, supabase);
 
-    return reply.send("✅ Announcement approved and emails sent");
+    return reply.send(
+      `✅ Announcement flagged as ${isOfficial ? "Official" : "All"} and emails sent`,
+    );
   });
 }
