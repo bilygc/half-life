@@ -8,7 +8,7 @@ export async function sendAnnouncementToSubscribers(
 ) {
   const { data: subscribers } = await supabase
     .from("subscribers")
-    .select("id,email,preference")
+    .select("id,email,subscription_preference")
     .eq("is_active", true)
     .eq("confirmed", true);
 
@@ -16,7 +16,7 @@ export async function sendAnnouncementToSubscribers(
 
   for (const user of subscribers) {
     const isOfficial = announcement.is_official;
-    if (user.preference === "official_only" && !isOfficial) {
+    if (user.subscription_preference === "official_only" && !isOfficial) {
       continue;
     }
 
