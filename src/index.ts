@@ -2,7 +2,7 @@ import fastify from "fastify";
 import "dotenv/config";
 import sql from "./db.js";
 import { createClient } from "@supabase/supabase-js";
-import type { HLNews } from "./types.js";
+import type { HLNews, Article, SteamResponse, Newsitem } from "./types.js";
 import { adminRoutes } from "./routes/admin.js";
 import crypto from "crypto";
 import { sendEmail } from "./lib/sendEmail.js";
@@ -21,10 +21,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 let isTimeToFetchNews = false;
 let cachedDbNews: HLNews = {
-  status: "",
+  status: "ok",
   totalResults: 0,
   articles: [],
 };
+
+import { fetchSteamNews } from "./lib/steam.js";
 
 const insertNewsApiRow = async () => {
   // Build payload — only include provided fields
@@ -57,7 +59,7 @@ server.get("/ping", async (request, reply) => {
 server.addHook("onRequest", async (request, reply) => {
   if (request.routeOptions.url === "/news") {
     const authHeader = request.headers["authorization"];
-    const validToken = process.env.AUTH_TOKEN;
+    const validToken: string | undefined = process.env.AUTH_TOKEN;
 
     if (!validToken) {
       console.error("CRITICAL: AUTH_TOKEN is not defined in backend .env");
@@ -99,28 +101,47 @@ server.get<{ Reply: HLNews }>("/news", async (request, reply) => {
   }
 
   if (isTimeToFetchNews) {
-    console.log(">>> Fetching news from NewsAPI...");
+    console.log(">>> Fetching news from sources...");
 
     if (!apiKey) {
       throw new Error("NEWS_API_KEY is not defined");
     }
 
-    const url = `https://newsapi.org/v2/everything?q=half-life 3&searchIn=title&sortBy=publishedAt&language=en&apiKey=${apiKey}`;
+    const newsApiUrl = `https://newsapi.org/v2/everything?q=half-life 3&searchIn=title&sortBy=publishedAt&language=en&apiKey=${apiKey}`;
 
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`NewsAPI error: ${response.statusText}`);
-      }
-      const data = (await response.json()) as HLNews;
-      cachedDbNews = data;
+      const [newsApiResponse, steamArticles] = await Promise.all([
+        fetch(newsApiUrl),
+        fetchSteamNews(),
+      ]);
 
-      const row = await insertNewsApiRow();
+      let newsApiArticles: Article[] = [];
+      if (newsApiResponse.ok) {
+        const data = (await newsApiResponse.json()) as HLNews;
+        newsApiArticles = data.articles.map((a) => ({
+          ...a,
+          publishedAt: new Date(a.publishedAt).toISOString() as any,
+        }));
+      }
+
+      const mergedArticles = [...newsApiArticles, ...steamArticles].sort(
+        (a, b) =>
+          new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+      );
+
+      cachedDbNews = {
+        status: "ok",
+        totalResults: mergedArticles.length,
+        articles: mergedArticles,
+      };
+
+      await insertNewsApiRow();
       isTimeToFetchNews = false;
 
-      return data;
+      return cachedDbNews;
     } catch (err) {
-      console.error(">>> NewsAPI request failed:", err);
+      console.error(">>> News fetching failed:", err);
+      return cachedDbNews; // Return cached even if fetch fails
     }
   } else {
     return cachedDbNews;

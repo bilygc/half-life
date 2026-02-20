@@ -11,7 +11,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const NEWS_SOURCE = "newsapi";
+import { fetchSteamNews } from "../lib/steam.js";
+
+const NEWS_SOURCES = {
+  NEWSAPI: "newsapi",
+  STEAM: "steam",
+};
+
 const GAME = "half-life-3";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 
@@ -20,47 +26,74 @@ const generateApprovalToken = () => {
 };
 
 async function main() {
-  console.log("[CRON] Checking HL3 news...");
+  console.log("[CRON] Checking HL3 news from all sources...");
 
   const apiKey = process.env.NEWS_API_KEY;
   if (!apiKey) throw new Error("Missing NEWS_API_KEY");
 
-  const url =
+  // 1. Fetch from NewsAPI
+  const newsApiUrl =
     "https://newsapi.org/v2/everything" +
     "?q=half-life 3" +
     "&searchIn=title" +
     "&sortBy=publishedAt" +
     "&language=en";
 
-  const res = await fetch(url, {
-    headers: { "X-Api-Key": apiKey },
-  });
-
-  if (!res.ok) {
-    throw new Error(`News API failed: ${res.status}`);
-    process.exit(1);
+  let newsApiArticles: any[] = [];
+  try {
+    const res = await fetch(newsApiUrl, {
+      headers: { "X-Api-Key": apiKey },
+    });
+    if (res.ok) {
+      const data = (await res.json()) as HLNews;
+      newsApiArticles = (data.articles || []).map((a) => ({
+        source: NEWS_SOURCES.NEWSAPI,
+        title: a.title,
+        url: a.url,
+        publishedAt: a.publishedAt,
+      }));
+    }
+  } catch (err) {
+    console.error("[CRON] NewsAPI fetch failed", err);
   }
 
-  const news = (await res.json()) as HLNews;
+  // 2. Fetch from Steam
+  let steamArticles: any[] = [];
+  try {
+    const steamNews = await fetchSteamNews();
+    steamArticles = steamNews.map((a) => ({
+      source: NEWS_SOURCES.STEAM,
+      title: a.title,
+      url: a.url,
+      publishedAt: a.publishedAt,
+    }));
+  } catch (err) {
+    console.error("[CRON] Steam news fetch failed", err);
+  }
 
-  if (!news.articles?.length) {
-    console.log("[CRON] No articles found");
+  const allArticles = [...newsApiArticles, ...steamArticles];
+
+  if (!allArticles.length) {
+    console.log("[CRON] No articles found from any source");
     process.exit(0);
   }
 
-  for (const article of news.articles) {
+  console.log(`[CRON] Total articles found: ${allArticles.length}`);
+
+  for (const article of allArticles) {
+    // Basic filter: must mention "half-life 3" in title
     if (!article.title.toLowerCase().includes("half-life 3")) {
       continue;
     }
 
-    const sourceId = article.url; // URL es único → ideal como source_id
+    const sourceId = article.url; // URL is unique → ideal as source_id
 
-    // 1️⃣ Insertar anuncio si no existe
+    // 1️⃣ Insert announcement if it doesn't exist
     const { data: announcement, error: insertError } = await supabase
       .from("announcements")
       .upsert(
         {
-          source: NEWS_SOURCE,
+          source: article.source,
           source_id: sourceId,
           title: article.title,
           url: article.url,
@@ -89,7 +122,9 @@ async function main() {
       createEmailTemplate(announcement, "admin"),
     );
 
-    console.log("[CRON] Admin notified of new announcement");
+    console.log(
+      `[CRON] Admin notified of new announcement from ${article.source}: ${article.title}`,
+    );
   }
 
   process.exit(0);
