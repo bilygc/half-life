@@ -240,6 +240,24 @@ server.get<{
   }
 });
 
+server.get("/subscribers/count", async (request, reply) => {
+  try {
+    const { count, error } = await supabase
+      .from("subscribers")
+      .select("*", { count: "exact", head: true })
+      .eq("confirmed", true);
+
+    if (error) throw error;
+
+    const temporaryCount = (count ?? 0) <= 201 ? 201 + (count ?? 0) : count;
+
+    return { count: temporaryCount || 0 };
+  } catch (err) {
+    console.error(">>> Failed to fetch subscriber count:", err);
+    return reply.code(500).send({ error: "Internal Server Error" });
+  }
+});
+
 const port = Number(process.env.PORT) || 8080;
 
 server.listen({ port, host: "0.0.0.0" }, (err, address) => {
